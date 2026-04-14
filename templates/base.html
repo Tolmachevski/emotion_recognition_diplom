@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система определения настроения по голосу</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#FBBF24',
+                        primaryHover: '#F59E0B',
+                        secondary: '#9CA3AF',
+                        secondaryHover: '#6B7280',
+                        accent: '#FCAE1E',
+                        accentHover: '#000000',
+                        bg: '#F3F4F6'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-bg min-h-screen flex flex-col">
+    <!-- Шапка с навигацией -->
+    <nav class="bg-white shadow-sm py-4 px-8 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                </svg>
+            </div>
+            <h1 class="text-xl font-bold text-gray-800">СИСТЕМА ОПРЕДЕЛЕНИЯ НАСТРОЕНИЯ ПО ГОЛОСУ</h1>
+        </div>
+        <div class="flex gap-4">
+            <a href="{{ url_for('login') }}" class="text-gray-600 hover:text-accent font-medium">Вход</a>
+            <a href="{{ url_for('register') }}" class="text-gray-600 hover:text-accent font-medium">Регистрация</a>
+        </div>
+    </nav>
+
+    <!-- Контент -->
+    <main class="flex-grow">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

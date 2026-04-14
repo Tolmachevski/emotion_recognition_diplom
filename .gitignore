@@ -1,0 +1,21 @@
+# Данные
+data/
+*.csv
+!README.md
+
+# Модели
+model/
+*.pkl
+*.joblib
+
+# Временные файлы
+.gradio/
+.vscode/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Логи и прочее
+*.log
+.DS_Store
+Thumbs.db
