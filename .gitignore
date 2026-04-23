@@ -1,11 +1,17 @@
 # Данные
 data/
+*.wav
+*.mp3
+*.m4a
 *.csv
+*.tsv
+*.json
 !README.md
 
 # Модели
 model/
 *.pkl
+*.h5
 *.joblib
 
 # Временные файлы
@@ -14,8 +20,23 @@ model/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+*.pyo
+.env
+.venv/
+venv/
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+
+
+# === Jupyter ===
+.ipynb_checkpoints/
 
 # Логи и прочее
 *.log
 .DS_Store
 Thumbs.db
+experiment_log.json

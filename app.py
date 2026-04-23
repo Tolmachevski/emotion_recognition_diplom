@@ -7,6 +7,8 @@ import joblib
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 from werkzeug.utils import secure_filename
 from functools import wraps
+from utils import get_model_path
+
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
@@ -18,6 +20,10 @@ app.config['ALLOWED_EXTENSIONS'] = {'wav', 'mp3', 'ogg', 'm4a'}
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['EXAMPLES_FOLDER'], exist_ok=True)
+
+
+
+
 
 # Словарь эмоций (RAVDESS)
 EMOTIONS_MAP = {
@@ -40,8 +46,8 @@ def load_model():
     """Загрузка ML модели и скалера через joblib"""
     global model, scaler
     try:
-        model_path = os.path.join(app.config['MODEL_FOLDER'], 'emotion_model_v2.pkl')
-        scaler_path = os.path.join(app.config['MODEL_FOLDER'], 'scaler_v2.pkl')
+        model_path = os.path.join(app.config['MODEL_FOLDER'], 'emotion_model_v3.pkl')
+        scaler_path = os.path.join(app.config['MODEL_FOLDER'], 'scaler_for_emotion_model_v3.pkl')
         
         # Проверяем существование файлов
         if not os.path.exists(model_path):
