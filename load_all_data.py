@@ -260,9 +260,9 @@ def load_all_datasets():
     audio_paths.extend(paths)
     emotions.extend(ems)
 
-    paths, ems = load_dusha_dataset(DUSHA_DIR)
-    audio_paths.extend(paths)
-    emotions.extend(ems)
+    #paths, ems = load_dusha_dataset(DUSHA_DIR)
+    #audio_paths.extend(paths)
+    #emotions.extend(ems)
 
     paths, ems = load_crema_d(CREMA_D_DIR)
     audio_paths.extend(paths)
