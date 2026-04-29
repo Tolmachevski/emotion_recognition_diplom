@@ -16,7 +16,7 @@ from portable_ffmpeg import add_to_path
 add_to_path()
 from augmentation_audio import augmentation_audio, load_audio_parallel
 from extracter_features import extract_mfcc_parralel, extract_mfcc_parralel_v05
-
+from balancer_class import check_class_balance_pd
 
 
 # Настройка PySoundFile
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     # ШАГ 4: Извлечение признаков
     # ============================================
 
-    X_train_features, y_test = extract_mfcc_parralel(X_train, y_train)
+    X_train_features, y_train = extract_mfcc_parralel(X_train, y_train)
     X_test_features, y_test = extract_mfcc_parralel(X_test, y_test)
     print("Извлечение признаков выполнено!")
 
@@ -112,3 +112,56 @@ if __name__ == '__main__':
     assert len(X_train_scaled) == len(y_train), "Рассинхрон признаков и меток!"
     assert X_train_scaled.shape[1] == 26, f"Ожидал 26 признаков, получил {X_train_scaled.shape[1]}"
     print(f"✅ Данные готовы: {X_train_scaled.shape}, меток: {len(y_train)}")
+
+
+
+    print(" ПРОВЕРКА БАЛАНСА КЛАССОВ")
+    check_class_balance_pd(y_train, "(перед обучением)")
+
+    # ============================================
+    # ШАГ 6: Обучение модели
+    # ============================================
+    print("\n ШАГ 8: Обучение модели SVM...")
+    print("\n Перед обучением модели подберем лучшие параметры")
+    print("\n ШАГ 8.1: Подбор лучших парамеров для обучения модели")
+
+
+    # Сетка параметров (БОЛЬШЕ вариантов для gamma!)
+    param_grid = {
+        'C': [1, 2, 3, 4, 5, 6],
+        'gamma': [0.01, 0.017, 0.025, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
+        'kernel': ['rbf']
+    }
+
+    # Создаём GridSearchCV
+    grid = GridSearchCV(
+        SVC(random_state=42, class_weight='balanced'),  # 1. Баланс весов
+        param_grid, 
+        cv=5, 
+        scoring='f1_macro',  # 2. Честная метрика
+        n_jobs=-1, 
+        verbose=2
+    )
+
+    grid.fit(X_train_scaled, y_train)
+    print("\n📊 Оценка на тесте (с учётом дисбаланса):")
+    y_pred = grid.best_estimator_.predict(X_test_scaled)
+    print(classification_report(y_test, y_pred, target_names=sorted(np.unique(y_test))))
+
+
+
+    # 1. Результаты подбора
+    print("\n" + "=" * 60)
+    print("РЕЗУЛЬТАТЫ ПОДБОРА ПАРАМЕТРОВ")
+    print("=" * 60)
+    print(f"✅ Лучшие параметры: {grid.best_params_}")
+    print(f"✅ Лучшая точность (CV): {grid.best_score_:.2%}")
+
+    # 2. Оценка НА ТЕСТЕ (самое важное!)
+    print("\n📊 Оценка на тестовой выборке:")
+    y_pred = grid.best_estimator_.predict(X_test_scaled)
+    print(classification_report(y_test, y_pred))
+    print(confusion_matrix(y_test, y_pred))
+
+
+
