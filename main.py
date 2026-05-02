@@ -17,7 +17,7 @@ from portable_ffmpeg import add_to_path
 add_to_path()
 from augmentation_audio import augmentation_audio, load_audio_parallel
 from balancer_class import check_class_balance_pd
-
+from utils import load_extracted_features, save_extracted_features
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 from loader import load_dusha_dataset
@@ -40,6 +40,12 @@ SAVE_DIR = r'E:\diplom_ser\model' # путь сохранения модели
 DUSHA_DIR_TRAINED_DATA = r'E:\diplom_ser\data\dusha\crowd\crowd_train\wavs'
 
 
+# Пути для кэша
+CACHE_DIR = r'E:\diplom_ser\processed'
+train_cache = os.path.join(CACHE_DIR, 'dusha_crowd_train_features.npz')
+test_cache = os.path.join(CACHE_DIR, 'dusha_crowd_test_features.npz')
+
+
 
 # Начало программы
 if __name__ == '__main__':
@@ -51,35 +57,84 @@ if __name__ == '__main__':
     print('Обучение модели')
     print('=' * 60)
 
-    #path, emotions = load_dusha()
-
-    #print('\n ИТОГ...')
-    #print(f"    Сумма аудиофайлов для обучения - {len(path)}")
-    #print(f"    Сумма эмоций - {len(emotions)}")
 
 
+    print(f"\n  Загрузка датасета ДУША")
 
-    print(f"\n📦 ШАГ 3: Загрузка датасета ДУША")
-
-    X_dusha_train, y_dusha_train = load_dusha_dataset(
+    # Загружаем тренировочные данные
+    X_v_tr, y_v_tr = load_dusha_dataset(
         dusha_dir=DUSHA_DIR,
-        subset='crowd_train', # Из какой папки берем данные
-        sample_size=500 # Берем только 500 файлов из датасета
+        subset='crowd_train' # Из какой папки берем данные
+        # sample_size=500 # Берем только 500 файлов из датасета
     )
 
-    if X_dusha_train is None:
+    # Загружаем тестовые данные
+    X_v_ts, y_v_ts = load_dusha_dataset(
+        dusha_dir=DUSHA_DIR,
+        subset='crowd_test' # Из какой папки берем данные
+        #csample_size=500 # Берем только 500 файлов из датасета
+    )
+
+
+
+    # Если не смогли загрузить тренировочную выборку
+    if X_v_tr is None:
+        print("ОШИБКА ЗАГРУЗКИ ДУШИ, ПРОВЕРЬ ПУТИ!")
+
+    # Если не смогли загрузить тестовую выборку
+    if X_v_ts is None:
         print("ОШИБКА ЗАГРУЗКИ ДУШИ, ПРОВЕРЬ ПУТИ!")
 
 
 
-    X_dusha_train_features, y_dusha_train = extract_features_parrallel(X_dusha_train, y_dusha_train)
-    print("Извлечение признаков выполнено!")
-    if not validate_extracted_features(X_dusha_train_features, y_dusha_train, expected_dims=29):
-        raise RuntimeError("Валидация признаков провалена. Остановка обучения.")
+
+    # ============================================
+    # ШАГ 3: Аугментация данных (пропускаем, и так большая выборка)
+    # ============================================
 
 
-    print(f"Тип признаков - {type(X_dusha_train_features)}")
-    print(f"Тип эмоций - {type(y_dusha_train)}")
+    # ============================================
+    # ШАГ 4: Извлечение признаков (пропускаем)
+    # ============================================
+
+    feat_names = ([f"mfcc{i}_m" for i in range(1,14)] + 
+              [f"mfcc{i}_s" for i in range(1,14)] + 
+              ["rms", "zcr", "centroid"])
+
+    # Извлекаем признаки тренировочной выборки и сразу сохранияем их в кеш или сразу загружаем
+    if os.path.exists(train_cache):
+        print("🔄 Загружаем признаки (train)...")
+        X_v_tr_features, y_v_tr_emotions, _, _, _ = load_extracted_features(train_cache)
+    else:
+        print("🔄 Извлекаем признаки (train)...")
+        X_v_tr_features, y_v_tr_emotions = extract_features_parrallel(X_v_tr, y_v_tr)
+        print("Извлечение признаков выполнено!")
+        if not validate_extracted_features(X_v_tr_features, y_v_tr_emotions, expected_dims=29):
+            raise RuntimeError("Валидация train провалена")
+        save_extracted_features(X_v_tr_features, y_v_tr_emotions, feat_names, None, train_cache)
+
+
+    # Извлекаем признаки тестовой выборки и сразу сохранияем их в кеш или сразу загружаем
+    if os.path.exists(test_cache):
+        print("🔄 Загружаем признаки (test)...")
+        X_v_ts_features, y_v_ts_emotions, _, _, _ = load_extracted_features(test_cache)
+    else:
+        print("🔄 Извлекаем признаки (train)...")
+        X_v_ts_features, y_v_ts_emotions = extract_features_parrallel(X_v_ts, y_v_ts)
+        print("Извлечение признаков выполнено!")
+        if not validate_extracted_features(X_v_ts_features, y_v_ts_emotions, expected_dims=29):
+            raise RuntimeError("Валидация признаков провалена. Остановка обучения.")
+        save_extracted_features(X_v_ts_features, y_v_ts_emotions, feat_names, None, test_cache)
+
+    print("✅ Признаки готовы")
+
+
+    """
+    print(f"Тип признаков тренировочных данных - {type(X_v_tr_features)}")
+    print(f"Тип эмоций тренировочных данных - {type(y_v_tr_emotions)}")
+
+    print(f"Тип признаков тестовых данных - {type(X_v_ts_features)}")
+    print(f"Тип эмоций тестовых данных - {type(y_v_ts_emotions)}")
 
 
     print("\n📊 Детальная статистика по признакам (первые 5 и последние 3):")
@@ -91,48 +146,15 @@ if __name__ == '__main__':
     check_indices = [0, 1, 13, 26, 27, 28]  # mfcc1_m, mfcc1_s, mfcc13_s, rms, zcr, centroid
 
     for idx in check_indices:
-        col = X_dusha_train_features[:, idx]
+        col = X_v_tr_features[:, idx]
         print(f"{feat_names[idx]:10s} | min: {col.min():7.2f} | max: {col.max():7.2f} | mean: {col.mean():7.2f} | std: {col.std():7.2f}")
 
-
-
-
-
-    exit()
-
-
-    # ============================================
-    # ШАГ 2: Разделение на тренировочную и тестовую выборки
-    # ============================================
-    print("\n ШАГ 2: Разделение на train/test...")
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        path, # пути к аудио
-        emotions, # Эмоции
-        test_size=0.2, # Тестовых файлов будет 20%, а 80% в обучении
-        random_state=42, # Фиксируем "Случайность при воспроизведении"
-        stratify=emotions # Сохраняем пропорцию классов
-    )
-
-    print(f"    Тренировочные {len(X_train)} файлов")
-    print(f"    Тестовые {len(X_test)} файлов")
-
-
-
-    print(f"ПЕРЕД ИЗВЛЕЧЕНИЕМ ПРИЗНАКОВ ИМЕЕМ: {type(X_train)}")
-    print(f"ПЕРЕД ИЗВЛЕЧЕНИЕМ ПРИЗНАКОВ ИМЕЕМ: {type(y_train)}")
-    # ============================================
-    # ШАГ 3: Аугментация данных (пропускаем, и так большая выборка)
-    # ============================================
-
-
-    # ============================================
-    # ШАГ 4: Извлечение признаков
-    # ============================================
-
-    X_train_features, y_train = extract_mfcc_parralel(X_train, y_train)
-    X_test_features, y_test = extract_mfcc_parralel(X_test, y_test)
-    print("Извлечение признаков выполнено!")
+    for idx in check_indices:
+        col = X_v_ts_features[:, idx]
+        print(f"{feat_names[idx]:10s} | min: {col.min():7.2f} | max: {col.max():7.2f} | mean: {col.mean():7.2f} | std: {col.std():7.2f}")
+    
+    """
+    
 
     # ============================================
     # ШАГ 5: Нормализация
@@ -140,29 +162,40 @@ if __name__ == '__main__':
     print("\n ШАГ 5: Нормализация...")
 
 
-    print(f"ПЕРЕД НОРМАЛИЗАЦИЕЙ ИМЕЕМ: {type(X_train_features)}")
-    print(f"ПЕРЕД НОРМАЛИЗАЦИЕЙ ИМЕЕМ: {type(X_test_features)}")
+    print(f"ПЕРЕД НОРМАЛИЗАЦИЕЙ ИМЕЕМ: {type(X_v_tr_features)}")
+    print(f"ПЕРЕД НОРМАЛИЗАЦИЕЙ ИМЕЕМ: {type(X_v_ts)}")
 
     scaler = StandardScaler() # Создаем инструмент для масштабирования
-    X_train_scaled = scaler.fit_transform(X_train_features)
+    X_v_tr_features_scld = scaler.fit_transform(X_v_tr_features)
     # fit() - изучает тренировочные данные: считает среднее и std для каждого признака
     # transform() - применяет формулу к тренировочным данным
-    X_test_scaled = scaler.transform(X_test_features) # Применяет те же самые средние и std, но не пересчитывает заного для теста
+    X_v_ts_features_scld = scaler.transform(X_v_ts_features) # Применяет те же самые средние и std, но не пересчитывает заного для теста
     # fit() применяем только для ТРЕНИРОВОЧНЫХ данных, поскольку если применим - модель запомнит их, и на выходе мы получим "ложные" хорошие результаты
     # Это как при обучении ученика дать ему материалы экзамена, а потом протестировать ученика на этом же экзамене
 
 
+    # Сохраняем скалер для будущего инференса
+    os.makedirs(SAVE_DIR, exist_ok=True)
+    joblib.dump(scaler, os.path.join(SAVE_DIR, 'scaler.pkl'))
+    print(f"💾 Скалер сохранён: {os.path.join(SAVE_DIR, 'scaler.pkl')}")
+
     print("Нормализация выполнена!")
 
 
-    assert len(X_train_scaled) == len(y_train), "Рассинхрон признаков и меток!"
-    assert X_train_scaled.shape[1] == 26, f"Ожидал 26 признаков, получил {X_train_scaled.shape[1]}"
-    print(f"✅ Данные готовы: {X_train_scaled.shape}, меток: {len(y_train)}")
+    assert len(X_v_tr_features_scld) == len(y_v_tr_emotions), "Рассинхрон признаков и меток!"
+    assert X_v_tr_features_scld.shape[1] == 29, f"Ожидал 29 признаков, получил {X_v_tr_features_scld.shape[1]}"
+    print(f"✅ Данные готовы: {X_v_tr_features_scld.shape}, меток: {len(y_v_tr_emotions)}")
 
 
 
+
+    exit()
+
+
+
+    
     print(" ПРОВЕРКА БАЛАНСА КЛАССОВ")
-    check_class_balance_pd(y_train, "(перед обучением)")
+    check_class_balance_pd(y_v_tr_emotions, "(перед обучением)")
 
     # ============================================
     # ШАГ 6: Обучение модели
@@ -189,13 +222,13 @@ if __name__ == '__main__':
         verbose=2
     )
 
-    grid.fit(X_train_scaled, y_train)
+    grid.fit(X_v_tr_features_scld, y_v_tr_emotions)
     print("\n📊 Оценка на тесте (с учётом дисбаланса):")
-    y_pred = grid.best_estimator_.predict(X_test_scaled)
-    print(classification_report(y_test, y_pred, target_names=sorted(np.unique(y_test))))
+    y_pred = grid.best_estimator_.predict(X_v_ts_features_scld)
+    print(classification_report(y_v_ts_emotions, y_pred, target_names=sorted(np.unique(y_v_ts_emotions))))
 
 
-
+    """
     # 1. Результаты подбора
     print("\n" + "=" * 60)
     print("РЕЗУЛЬТАТЫ ПОДБОРА ПАРАМЕТРОВ")
@@ -208,6 +241,9 @@ if __name__ == '__main__':
     y_pred = grid.best_estimator_.predict(X_test_scaled)
     print(classification_report(y_test, y_pred))
     print(confusion_matrix(y_test, y_pred))
+    
+    """
+    
 
 
 
